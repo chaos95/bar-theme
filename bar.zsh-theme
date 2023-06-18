@@ -15,42 +15,60 @@ else
   _LIBERTY="%{$FG[250]%}$"
 fi
 
-get_space () {
-  local STR=$1$2
+print_spaced () {
+  local left=$1
+  local right=$2
   local zero='%([BSUbfksu]|([FB]|){*})'
-  local LENGTH=${#${(S%%)STR//$~zero/}}
-  local SPACES="%{$BG[234]%}"
-  (( LENGTH = ${COLUMNS} - $LENGTH - 1))
+  local LENGTHL=${#${(S%%)left//$~zero/}}
+  local LENGTHR=${#${(S%%)right//$~zero/}}
+  local LENGTH=0
+  local SPACER_LENGTH
+  (( SPACER_LENGTH = $LENGTHL + $LENGTHR ))
 
-  for i in {0..$LENGTH}
-    do
-      SPACES="$SPACES "
-    done
+  if [[ $SPACER_LENGTH -ge $COLUMNS ]]; then
+      (( LENGTH = ${COLUMNS} - $LENGTHR - 1))
 
-  echo $SPACES
+      print -rP $left
+      print -rP $right
+  else
+      local SPACES="%{$BG[234]%}"
+      (( LENGTH = ${COLUMNS} - $LENGTHR - $LENGTHL - 1))
+      for i in {0..$LENGTH}
+      do
+          SPACES="$SPACES "
+      done
+
+      print -rP $left$SPACES$right
+  fi
 }
 
 export ZSH_FIRST=1
 
-bar () {
-  # git
+precmd () {
   git=$(git_prompt_info)
   _git_=`[[ "$git" == ''  ]] && V="" || V=" %{$FG[254]%}%{$BG[236]%}$git%{$BG[236]%} %{$reset_color%}"; echo $V`
 
-  # conda
   _condaenv_=`[[ $CONDA_DEFAULT_ENV == 'base' || $CONDA_DEFAULT_ENV == '' ]] && V="" || V=" %{$FG[254]%}%{$BG[236]%} $CONDA_DEFAULT_ENV %{$reset_color%}"; echo $V`
+
+  _venv_=`[[ "$name" == '' ]] && V="" || V=" %{$FG[254]%}%{$BG[236]%} $name %{$reset_color%}"; echo $V`
+
+  _venv2_=`[[ "$VIRTUAL_ENV" == '' ]] && V="" || V=" %{$FG[254]%}%{$BG[236]%} $VIRTUAL_ENV %{$reset_color%}"; echo $V`
+
+  _datetime_="%{$FG[244]%} $( gdate +"%Y-%m-%d %H:%M:%S" )%{$reset_color%}"
 
   # Run `spectrum_ls` to search colors
   [[ $ZSH_THEME_BAR_HOSTCOLOR == '' ]] && bhc=244 || bhc=$ZSH_THEME_BAR_HOSTCOLOR
 
   # bar
   _1LEFT="%{$BG[234]%}%{$FG[$bhc]%}%n %m%{$reset_color%}%{$BG[234]%} %{$FG[253]%}%~%{$reset_color%}"
-  _1RIGHT="%{$BG[234]%}%{$FG[250]%}$_git_%{$BG[234]%}%{$FG[250]%}$_condaenv_%{$BG[234]%}%{$FG[250]%} %{$FG[244]%}`date --rfc-3339=sec`%{$reset_color%}"
-  _1SPACES=`get_space $_1LEFT $_1RIGHT`
-  print
-  print -rP "$_1LEFT$_1SPACES$_1RIGHT"
+
+  _1RIGHT=""
+  for comp in $_venv_ $_venv2_ $_git_ $_condaenv_ $_datetime_; do
+      _1RIGHT="${_1RIGHT}%{$BG[234]%}%{$FG[250]%}${comp}"
+  done
+
+  print_spaced "$_1LEFT" "$_1RIGHT"
 }
 
-zle_highlight=( default:fg=green,bold )
-PROMPT='$(bar)
-$_LIBERTY '
+zle_highlight=( default:fg=white,bold )
+PROMPT='$_LIBERTY '
